@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+
+    <script src="https://www.WebRTC-Experiment.com/RecordRTC.js"></script>
+    <script src="http://localhost:5000/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <div style="margin: 20px">
+        <div>
+            <button id="start-recording" disabled>Start Streaming</button>
+            <button id="stop-recording" disabled>Stop Streaming</button>
+        </div>
+        <h2 style="font-size: 14px;">Server Response</h2>
+        <textarea id="results" style="width: 800px; height: 300px;"></textarea>
+    </div>
+
+    <script type="text/javascript">
+
+        const startRecord = document.getElementById('start-recording');
+        const stopRecord = document.getElementById('stop-recording');
+        const resultpreview = document.getElementById('results');
+
+        var socket=io.connect('http://localhost:5000',startRecord.disabled=false);
+        
+        socket.on('results', function (data) {
+            resultpreview.innerHTML += "\n audio streamed to server successfully : " + data ;
+        })
+
+        // socket.on('voice', function(arrayBuffer) { // audio broadcasted and streamed code (no need)
+        //     console.log('hello client here')
+        //     var blob = new Blob([arrayBuffer], { 'type' : 'audio/ogg; codecs=opus' });
+        //     var audio = document.createElement('audio');
+        //     audio.src = window.URL.createObjectURL(blob);
+        //     audio.muted=true;
+        //     audio.play();
+        // });
+
+        startRecord.addEventListener('click',function() {
+            startRecord.disabled = true;
+            stopRecord.disabled = false;
+
+            var constraints = { audio: true };
+            navigator.mediaDevices.getUserMedia(constraints).then(function(mediaStream) {
+                var mediaRecorder = new MediaRecorder(mediaStream);
+
+                mediaRecorder.onstart = function(e) {
+                    this.chunks = [];
+                };
+                mediaRecorder.ondataavailable = function(e) {
+                    this.chunks.push(e);
+                };
+                mediaRecorder.onstop = function(e) {
+                    var blob = new Blob(this.chunks, { 'type' : 'audio/ogg; codecs=opus' });
+                    socket.emit('radio', blob);
+                };
+
+                // Start recording
+                mediaRecorder.start();
+
+                // Stop recording after 1 seconds and broadcast it to server
+                setInterval(function() {
+                    mediaRecorder.stop()
+                    mediaRecorder.start()
+                }, 1000);
+            });
+        });
+
+        stopRecord.addEventListener('click',function() {
+            startRecord.disabled = false;
+            stopRecord.disabled = true;
+        });
+
+
+    </script>
+
+</body>
+</html>
